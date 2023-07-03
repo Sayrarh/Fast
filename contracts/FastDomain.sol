@@ -102,9 +102,9 @@ contract FastDomain {
     userDomains[msg.sender] = AllRegisteredDomains.length - 1; // store the index of the domain name
 
     emit DomainEvent(_domain, msg.sender);
-}
+    }
 
-  function validateDomainName(string memory _domain) internal pure returns (bool) {
+    function validateDomainName(string memory _domain) internal pure returns (bool) {
       // Implement your domain name validation logic here
       // This is just a simple example; modify it based on your specific requirements
       bytes memory domainBytes = bytes(_domain);
@@ -126,7 +126,7 @@ contract FastDomain {
       }
 
       return true; // Valid domain name
-  }
+    }
 
     /// @dev reassignDomain function allows the owner of a domain to reassign it to a new domain name
     function reassignDomain(string memory _newDomain, address user) external {
