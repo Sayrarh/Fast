@@ -17,11 +17,31 @@ interface IFastDomainNFT {
     function awardUser(address user) external returns (uint256);
 }
 
+/**
+
+@title FastDomain
+@dev A smart contract for registering and managing domain names within the FastDomain DApp.
+*/
 contract FastDomain {
-    /////////////////EVENTS////////////////
-    //DomainEvent is emitted when a domain is registered.
-    //This event allows external parties to listen and react to domain registration events.
-    event DomainEvent(string domain, address user);
+      /**
+      * @dev Emitted when a domain is registered.
+      * @param domain The domain name that is registered.
+      * @param user The address of the user who registered the domain.
+      * @param timestamp The timestamp of the registration.
+      * @param blockNumber The block number of the registration.
+      */
+     event DomainRegistered(string domain, address indexed user, uint256 timestamp, uint256 blockNumber);
+
+    /**
+    * @dev Emitted when a domain is reassigned.
+    * @param oldDomain The old domain name that is being reassigned.
+    * @param newDomain The new domain name to which the domain is being reassigned.
+    * @param user The address of the user who owns the domain.
+    * @param timestamp The timestamp of the reassignment.
+    * @param blockNumber The block number of the reassignment.
+    */
+
+    event DomainReassigned(string oldDomain, string newDomain, address indexed user, uint256 timestamp, uint256 blockNumber);
 
     ////////////////STATE//////////////////
     IERC20 tokenAddr; //address of the ERC20 token contract used for transactions within the FastDomain DApp.
@@ -37,48 +57,54 @@ contract FastDomain {
 
     uint256 amountToMint = 2 * 10 ** 18;
 
-    ///////////////ERROR///////////////
-    error ZeroAddress();
-    error DomainExists();
-    error GetToken();
-    error HasAlreadyMinted();
-    error InsufficientToken();
-    error NotOwner();
-    error AddressDontHaveFastDomain();
+    /**
+    * @dev Modifier to check if a domain name is not already registered.
+    * @param domain The domain name to check.
+    */
+    modifier onlyNotRegistered(string memory domain) {
+    require(!registeredDomainUsers[domain], "DomainExists");
+    _;
+    }
 
+
+    /**
+    * @dev Modifier to check if a domain name is not empty.
+    * @param domain The domain name to check.
+    */
+    modifier requireDomainNotEmpty(string memory domain) {
+        require(bytes(domain).length > 0, "EmptyDomain");
+        _;
+    }
+
+    /**
+    @dev Constructor function for the FastDomain contract.
+    @param _fastTokenAddress The address of the ERC20 token contract used for transactions within the FastDomain DApp.
+    @param _nftAddr The address of the IFastDomainNFT contract used for NFT minting.
+    */
     constructor(IERC20 _fastTokenAddress, IFastDomainNFT _nftAddr) {
         tokenAddr = _fastTokenAddress;
         nftAddr = _nftAddr;
     }
 
-    /// @dev mintToken function allows users to mint tokens for testing purposes
+    /**
+    * @dev Allows users to mint tokens for testing purposes.
+    * @return A string indicating the success of token minting.
+    */
     function mintToken() external returns (string memory) {
-        if (hasMinted[msg.sender] == true) {
-            revert HasAlreadyMinted();
-        }
-
-        if (IERC20(tokenAddr).balanceOf(address(this)) < amountToMint) {
-            revert InsufficientToken();
-        }
-
+        require(!hasMinted[msg.sender], "HasAlreadyMinted");
+        require(IERC20(tokenAddr).balanceOf(address(this)) >= amountToMint, "InsufficientToken");
         hasMinted[msg.sender] = true;
         IERC20(tokenAddr).transfer(msg.sender, amountToMint);
-
         return "Fast Token Successfully Minted";
     }
 
-    /// @dev registerFastDomain function enables users to register a domain by specifying a domain name
-    function registerFastDomain(string memory _domain) external {
-        if (IERC20(tokenAddr).balanceOf(msg.sender) < amountToMint) {
-            revert GetToken();
-        }
-        if (registeredDomainUsers[_domain] == true) {
-            revert DomainExists();
-        }
-
-        if (registered[msg.sender] == true) {
-            revert("Address has a domain!, update domain");
-        }
+    /**
+    * @dev Enables users to register a domain by specifying a domain name.
+    * @param _domain The domain name to be registered.
+    */
+    function registerFastDomain(string memory _domain)  external requireDomainNotEmpty(_domain) onlyNotRegistered(_domain) {
+        require(IERC20(tokenAddr).balanceOf(msg.sender) >= amountToMint,"GetToken");
+        require(!registered[msg.sender], "Address has a domain!, update domain");
 
         IERC20(tokenAddr).transferFrom(msg.sender, address(this), 1e18);
 
@@ -92,26 +118,20 @@ contract FastDomain {
         AllRegisteredDomains.push(_domain);
         userDomains[msg.sender] = AllRegisteredDomains.length - 1; // store the index of the domain name
 
-        emit DomainEvent(_domain, msg.sender);
+        emit DomainRegistered(_domain, msg.sender, block.timestamp, block.number);
     }
 
-    /// @dev reassignDomain function allows the owner of a domain to reassign it to a new domain name
-    function reassignDomain(string memory _newDomain, address user) external {
-        if (msg.sender != user) revert NotOwner();
 
-        if (IERC20(tokenAddr).balanceOf(msg.sender) >= amountToMint)
-            revert GetToken();
-
-        //check that user is registered
-        if (registered[user] == false) revert AddressDontHaveFastDomain();
-
-        if (registeredDomainUsers[_newDomain] == true) {
-            revert DomainExists();
-        }
-
-        if (user == address(0)) {
-            revert ZeroAddress();
-        }
+     /**
+     * @dev Allows the owner of a domain to reassign it to a new domain name.
+     * @param _newDomain The new domain name to which the domain is being reassigned.
+     * @param user The address of the user who owns the domain.
+     */
+    function reassignDomain(string memory _newDomain, address user) external requireDomainNotEmpty(_newDomain) onlyNotRegistered(_newDomain) {
+        require(msg.sender == user, "NotOwner");
+        require(IERC20(tokenAddr).balanceOf(msg.sender) >= amountToMint,"GetToken");
+        require(registered[user], "AddressDontHaveFastDomain");
+        require(user != address(0), "ZeroAddress");
 
         IERC20(tokenAddr).transferFrom(msg.sender, address(this), 1e18);
 
@@ -125,24 +145,36 @@ contract FastDomain {
         userNames[user] = _newDomain;
         registeredDomainUsers[_newDomain] = true;
 
-        emit DomainEvent(_newDomain, msg.sender);
+        emit DomainReassigned(oldDomain, _newDomain, msg.sender, block.timestamp, block.number);
     }
 
-    /// @dev function retrieves the domain name associated with a given address
+    /**
+    * @dev Retrieves the domain name associated with a given address.
+    * @param _domainAddress The address for which to retrieve the domain name.
+    * @return The domain name associated with the address.
+    */
     function getDomain(
         address _domainAddress
     ) external view returns (string memory) {
+      require(_domainAddress != address(0), "ZeroAddress");
         return userNames[_domainAddress];
     }
 
-    /// @dev isDomainRegistered function checks if a domain name is already registered
+    /**
+    * @dev Checks if a domain name is already registered.
+    * @param domain The domain name to check.
+    * @return A boolean indicating whether the domain name is registered.
+    */
     function isDomainRegistered(
         string memory domain
-    ) external view returns (bool) {
+    ) external requireDomainNotEmpty(domain) view returns (bool) {
         return registeredDomainUsers[domain];
     }
 
-    /// @dev getAllregisteredDomains function returns an array containing all registered domain names.
+    /**
+    * @dev Returns an array containing all registered domain names.
+    * @return An array of strings representing the registered domain names.
+    */
     function getAllregisteredDomains() external view returns (string[] memory) {
         return AllRegisteredDomains;
     }
