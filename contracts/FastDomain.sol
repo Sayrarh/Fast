@@ -68,7 +68,8 @@ contract FastDomain {
     }
 
     /// @dev registerFastDomain function enables users to register a domain by specifying a domain name
-    function registerFastDomain(string memory _domain) external {
+    function registerFastDomain(string calldata _domain) external {
+        require(bytes(_domain).length > 0, "Empty domain");
         if (IERC20(tokenAddr).balanceOf(msg.sender) < amountToMint) {
             revert GetToken();
         }
@@ -96,7 +97,9 @@ contract FastDomain {
     }
 
     /// @dev reassignDomain function allows the owner of a domain to reassign it to a new domain name
-    function reassignDomain(string memory _newDomain, address user) external {
+    function reassignDomain(string calldata _newDomain, address user) external {
+        require(bytes(_newDomain).length > 0, "Empty domain");
+        
         if (msg.sender != user) revert NotOwner();
 
         if (IERC20(tokenAddr).balanceOf(msg.sender) >= amountToMint)

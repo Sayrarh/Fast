@@ -186,7 +186,7 @@ const FastDomain = ({ fastDomainContract, tokenContract }) => {
             text={
               <span>
                 {" "}
-                {reqAddress} belongs to {value} &#127881;
+                {value} belongs to {reqAddress} &#127881;
               </span>
             }
           />

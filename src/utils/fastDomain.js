@@ -30,6 +30,7 @@ export const mintToken = async (fastDomainContract, performActions) => {
         });
     } catch (e) {
         console.log({e});
+        throw e;
     }
 };
 
@@ -54,7 +55,7 @@ export const reassignDomain = async (fastDomainContract, performActions, newDoma
             toast(<NotificationSuccess text={ <span>  {defaultAccount} is now registered as  {newDomainName} &#127881; </span> }/>);
         });
     } catch (e) {
-        toast(<NotificationError text="Not enought Token" />);
+        toast(<NotificationError text="Not enough Token" />);
         console.log({e});
     }
 };
